@@ -1,0 +1,163 @@
+```{r setup, include=FALSE}
+  library(quanteda)
+  require(readtext)
+  library(sqldf)
+  library(dplyr)
+  library(stringi)
+ library(ggplot2)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Synopsis
+
+The goal of the project is to build a predictive model for suggesting next word given a text input.
+In this report we will summarise data exploration for next word prediction model. 
+Dataset consists of corpus in English, German and finnish.We will focus on english text for this project.
+We will use data from https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip.
+Data consists of three corpora from blogs, new and twitter sites. 
+Lets load and explore the data.
+
+```{r warning=FALSE}
+    conn <- file("en_US.twitter.txt", "r")
+    twitterText <- readLines(conn, encoding = "UTF-8", skipNul = TRUE)
+    close(conn) 
+    conn <- file("en_US.news.txt", "r")
+    newsText <- readLines(conn, encoding = "UTF-8", skipNul = TRUE)
+    close(conn) 
+    conn <- file("en_US.blogs.txt", "r")
+    blogsText <- readLines(conn, encoding = "UTF-8", skipNul = TRUE)
+    close(conn) 
+  
+```
+
+
+Lets check the no of lines, words and size of all three texts: 
+
+```{r}
+sizeTwitter <- file.info("en_US.twitter.txt")$size / 1024
+sizeNews <- file.info("en_US.news.txt")$size / 1024
+sizeblogs <- file.info("en_US.blogs.txt")$size / 1024
+wordsTwitter <- stri_count_words(twitterText)
+wordsNews <- stri_count_words(newsText)
+wordsbolg <- stri_count_words(blogsText)
+data.frame(Source = c("Twitter", "News", "Blogs"),
+           SizeMB = c(sizeTwitter, sizeNews, sizeblogs),
+           NoofLines = c(length(twitterText),length(newsText), length(blogsText)),
+           NoOfWords = c(sum(wordsTwitter),sum(wordsNews),sum(wordsbolg)))
+```
+
+## Data sampling
+
+Due to memory limitation we will use a sample of the data for our modelling. 
+I have merged data from all three files into a consolidated file and we will sample 15% lines from this file.
+We will put the result in another file and load it into a corpus object.
+
+```{r}
+set.seed(1288)
+if (!file.exists("mergedfile.txt")) {
+    conn <- file("mergedfile.txt", "r")
+    fulltext <- readLines(conn, encoding = "UTF-8", skipNul = TRUE)
+    nlines <- length(fulltext)
+    close(conn)
+    
+    conn <- file("sampledfile.txt", "w")
+    selection <- rbinom(nlines, 1, .1)
+    for (i in 1:nlines) {
+      if (selection[i] == 1) {
+        cat(fulltext[i], file = conn, sep = "\n")
+      }
+    }
+    close(conn)
+    paste(
+      "Saved",
+      sum(selection),
+      "lines to file",
+      "sampledfile.txt"
+    )
+}
+mytf3 <-
+    readLines("sampledfile.txt",
+              encoding = "UTF-8")
+  myCorpus <- corpus(mytf3)
+```
+
+
+
+
+# Helper methods 
+
+
+```{r utilities}
+getProfanities <- function() {
+  profanityFile <- "profanities.txt"
+  if (!file.exists(profanityFile)) {
+    download.file('http://www.cs.cmu.edu/~biglou/resources/bad-words.txt',
+                  profanityFile)
+  }
+  profanities <-
+    read.csv("profanities.txt",
+             header = FALSE,
+             stringsAsFactors = FALSE)
+  profanities$V1
+}
+makeNgrams <- function(sentences, n = 1L) {
+  words <-
+    tokens(
+      sentences,
+      ngrams = n,
+      remove_url = TRUE,
+      remove_separators = TRUE,
+      remove_punct = TRUE,
+      remove_twitter = TRUE,
+      what = "word",
+      remove_hyphens = TRUE,
+      remove_numbers = TRUE
+    )
+  words <-  tokens_remove(words, getProfanities())
+}
+plotMostFrequentwords <- function(nGrams, title){
+    nGramList <-  unlist(nGrams, recursive = FALSE, use.names = FALSE)
+  wordFreq <- table(nGramList)
+  mostfreqTwoGrams <- as.data.frame(sort(wordFreq,decreasing=TRUE)[1:10])
+  ggplot(mostfreqTwoGrams, aes(x= nGramList,y = Freq)) +geom_bar(stat = "identity") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 0))  + ggtitle(title)
+}
+```
+
+#Data cleanup
+
+Any text prediction algorithm has to deal with offensive words.
+Then we will create n-grams and remove the profanities using tokens_remove feature of quanteda.
+We will use the list of bad words available at http://www.cs.cmu.edu/~biglou/resources/bad-words.txt.
+
+```{r results = 'hide'}
+ sentences <-
+    tokens(
+      myCorpus,
+      what = "sentence",
+      remove_punct = TRUE,
+      remove_twitter = TRUE
+    )
+  sentences <-  tokens_remove(sentences, getProfanities())
+  sentences <- unlist(lapply(sentences, function(a)
+     char_tolower(a)))
+  twoGrams <- makeNgrams(sentences, 2)
+  threeGrams <- makeNgrams(sentences, 3)
+  FourGrams <- makeNgrams(sentences, 4)
+```
+
+## Exploratory analysis 
+
+
+Most frequent bigrams, trigrams and four gram words: 
+
+```{r}
+  plotMostFrequentwords(twoGrams, "Top 10 bigrams")
+  plotMostFrequentwords(threeGrams, "Top 10 trigrams")
+  plotMostFrequentwords(FourGrams, "Top 10 quadGrams")
+  
+```
+
+## Next steps
+
+Now we will create nGram model for predicting next words and deploy it in a shiny app.
