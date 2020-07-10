@@ -1,0 +1,13 @@
+name: Peer-graded-Assignment-Final-Project-Submission
+title: Peer-graded-Assignment-Final-Project-Submission
+username:
+account: abhijeetkmohite
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2555962
+bundleId: 3375796
+url: https://abhijeetkmohite.shinyapps.io/Peer-graded-Assignment-Final-Project-Submission/
+when: 1594377291.64269
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: en_US.blogs.txt|en_US.news.txt|en_US.twitter.txt|mergedfile.txt|pr.Rmd|project.R|README.html|sampledfile.txt|word_predictor/server.R|word_predictor/ui.R
