@@ -18,4 +18,4 @@ Slide Deck<br>
 4.  How would you describe the experience of using this app?<br>
 5.  Does the app present a novel approach and/or is particularly well done?<br>
 6.  Would you hire this person for your own data science startup company?<br>
-
+Fix typo in README
